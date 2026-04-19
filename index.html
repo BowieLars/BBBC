@@ -15,8 +15,8 @@
     .filter-block { display:flex; flex-direction:column; font-size:90%; }
     .small { font-size:90%; color:#666; }
     table { border-collapse: collapse; width: 100%; margin-top: 12px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: top; }
-    th { background: #667eea; color: white; cursor: pointer; user-select: none; font-weight: 600; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: top; font-size: 0.9em; }
+    th { background: #667eea; color: white; cursor: pointer; user-select: none; font-weight: 600; white-space: nowrap; }
     th:hover { background: #5568d3; }
     tr:nth-child(even) { background-color: #fafafa; }
     tr:hover { background-color: #f0f0f0; }
@@ -30,17 +30,19 @@
     #reset:hover { background: #c0392b; }
     #toggleOrder { background: #667eea; color: white; }
     #toggleOrder:hover { background: #5568d3; }
+    .table-wrapper { overflow-x: auto; }
     @media (max-width: 800px) {
       .controls { flex-direction: column; align-items: stretch; }
       select[multiple] { height: 90px; }
       .button-group { flex-direction: column; margin-left: 0; }
       input[type="search"] { min-width: auto; }
+      th, td { padding: 6px; font-size: 0.8em; }
     }
   </style>
 </head>
 <body>
   <h1>🎵 BBBC - Bewley Brother's Bowie Collection</h1>
-  <p class="subtitle">A searchable directory of David Bowie vinyl records (27 categories)</p>
+  <p class="subtitle">A searchable directory of David Bowie vinyl records (all 27 categories)</p>
 
   <div class="controls" id="controls">
     <input id="search" type="search" placeholder="Search (Artist, Title, Label, Country...)" aria-label="Search">
@@ -54,28 +56,29 @@
   </div>
 
   <div id="count"></div>
-  <table id="table" aria-live="polite">
-    <thead><tr id="thead"></tr></thead>
-    <tbody id="tbody"></tbody>
-  </table>
+  <div class="table-wrapper">
+    <table id="table" aria-live="polite">
+      <thead><tr id="thead"></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
 
 <script>
 // Path to JSON data file
 const dataPath = 'data/records.json';
 
 // Columns that should have filterable dropdowns
-// Adjust these to match your key searchable categories
-const filterableHeaders = ['artist', 'year', 'type', 'country', 'medium', 'recComp'];
+const filterableHeaders = ['artist', 'year', 'type', 'country', 'medium', 'recComp', 'vinylType', 'sleeveType', 'sealed'];
 
-// Headers to display in table (in order)
-const displayHeaders = ['id', 'artist', 'title', 'recComp', 'year', 'type', 'country', 'catNoI', 'medium', 'discs', 'vinylType', 'sleeveType', 'sealed', 'remark'];
+// ALL 27 Headers to display in table (in order)
+const displayHeaders = ['id', 'artist', 'title', 'recComp', 'year', 'type', 'country', 'catNoI', 'catNoII', 'barcode', 'medium', 'discs', 'vinylType', 'le', 'labelLettering', 'labelBackground', 'sleeveType', 'sleeveGraphics', 'sleeveFinish', 'sleeveFeatures', 'sleeveLettering', 'sleeveBackground', 'priceCode', 'innerBag', 'insert', 'sealed', 'remark'];
 
 // Header display names (friendly names for the table)
 const headerNames = {
   'id': 'ID',
   'artist': 'Artist',
   'title': 'Title',
-  'recComp': 'Label',
+  'recComp': 'Rec. Comp.',
   'year': 'Year',
   'type': 'Type',
   'country': 'Country',
@@ -84,18 +87,18 @@ const headerNames = {
   'barcode': 'Barcode',
   'medium': 'Medium',
   'discs': 'Discs',
-  'vinylType': 'Vinyl Type',
+  'vinylType': 'Vinyl type',
   'le': 'L.E.',
-  'labelLettering': 'Label Lettering',
-  'labelBackground': 'Label Background',
-  'sleeveType': 'Sleeve Type',
-  'sleeveGraphics': 'Sleeve Graphics',
-  'sleeveFinish': 'Sleeve Finish',
-  'sleeveFeatures': 'Sleeve Features',
-  'sleeveLettering': 'Sleeve Lettering',
-  'sleeveBackground': 'Sleeve Background',
-  'priceCode': 'Price Code',
-  'innerBag': 'Inner Bag',
+  'labelLettering': 'Label lettering',
+  'labelBackground': 'Label background',
+  'sleeveType': 'Sleeve type',
+  'sleeveGraphics': 'Sleeve graphics',
+  'sleeveFinish': 'Sleeve finish',
+  'sleeveFeatures': 'Sleeve features',
+  'sleeveLettering': 'Sleeve lettering',
+  'sleeveBackground': 'Sleeve background',
+  'priceCode': 'Price code',
+  'innerBag': 'Inner bag',
   'insert': 'Insert',
   'sealed': 'Sealed?',
   'remark': 'Remark'

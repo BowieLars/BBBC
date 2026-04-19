@@ -5,24 +5,49 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>BBBC - Bewley Brother's Bowie Collection</title>
   <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 20px; background-color: #f5f5f5; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; background-color: #f5f5f5; }
+    
+    .page-wrapper { margin: 0; padding-bottom: 20px; }
+    
+    .main-content { margin: 20px; padding-bottom: 20px; }
+    
     h1 { color: #333; margin-bottom: 5px; }
     .subtitle { color: #666; margin: 0 0 15px 0; font-size: 14px; }
+    
     .controls { margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     input[type="search"] { padding: 8px; min-width: 260px; border: 1px solid #ddd; border-radius: 4px; }
     select, button, label { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
     select[multiple] { min-width: 160px; max-width: 260px; height: 120px; }
     .filter-block { display:flex; flex-direction:column; font-size:90%; }
     .small { font-size:90%; color:#666; }
-    table { border-collapse: collapse; width: 100%; margin-top: 12px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    
+    .table-wrapper { 
+      overflow-x: hidden; 
+      overflow-y: visible;
+      background: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-radius: 6px;
+      margin-bottom: 20px;
+    }
+    
+    table { 
+      border-collapse: collapse; 
+      width: 100%; 
+      background: white; 
+    }
     th, td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: top; font-size: 0.9em; }
     th { background: #667eea; color: white; cursor: pointer; user-select: none; font-weight: 600; white-space: nowrap; }
     th:hover { background: #5568d3; }
     tr:nth-child(even) { background-color: #fafafa; }
     tr:hover { background-color: #f0f0f0; }
+    
     a { color: #0366d6; text-decoration: none; }
     a:hover { text-decoration: underline; }
-    #count { margin-top: 6px; font-weight: 600; color: #333; }
+    
+    #count { margin-top: 6px; font-weight: 600; color: #333; background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 12px; }
+    
     .button-group { margin-left: auto; display: flex; gap: 8px; }
     button { cursor: pointer; background: white; transition: all 0.2s; }
     button:hover { background: #f0f0f0; }
@@ -30,7 +55,40 @@
     #reset:hover { background: #c0392b; }
     #toggleOrder { background: #667eea; color: white; }
     #toggleOrder:hover { background: #5568d3; }
-    .table-wrapper { overflow-x: auto; overflow-y: hidden; }
+    
+    /* Fixed bottom scroll bar */
+    .bottom-scrollbar-container {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 16px;
+      background: white;
+      border-top: 1px solid #ddd;
+      overflow-x: auto;
+      overflow-y: hidden;
+      z-index: 100;
+      box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .bottom-scrollbar-container::-webkit-scrollbar {
+      height: 14px;
+    }
+    .bottom-scrollbar-container::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    .bottom-scrollbar-container::-webkit-scrollbar-thumb {
+      background: #667eea;
+      border-radius: 4px;
+    }
+    .bottom-scrollbar-container::-webkit-scrollbar-thumb:hover {
+      background: #5568d3;
+    }
+    
+    .scrollbar-dummy {
+      height: 1px;
+    }
+    
     @media (max-width: 800px) {
       .controls { flex-direction: column; align-items: stretch; }
       select[multiple] { height: 90px; }
@@ -41,26 +99,35 @@
   </style>
 </head>
 <body>
-  <h1>🎵 BBBC - Bewley Brother's Bowie Collection</h1>
-  <p class="subtitle">A searchable directory of David Bowie vinyl records (all 27 categories)</p>
+  <div class="page-wrapper">
+    <div class="main-content">
+      <h1>🎵 BBBC - Bewley Brother's Bowie Collection</h1>
+      <p class="subtitle">A searchable directory of David Bowie vinyl records (all 27 categories)</p>
 
-  <div class="controls" id="controls">
-    <input id="search" type="search" placeholder="Search (Artist, Title, Label, Country...)" aria-label="Search">
-    <div class="filter-block">
-      <span class="small">Sort by</span>
-      <select id="sortBy"></select>
-      <button id="toggleOrder" title="Toggle sort order">Asc</button>
+      <div class="controls" id="controls">
+        <input id="search" type="search" placeholder="Search (Artist, Title, Label, Country...)" aria-label="Search">
+        <div class="filter-block">
+          <span class="small">Sort by</span>
+          <select id="sortBy"></select>
+          <button id="toggleOrder" title="Toggle sort order">Asc</button>
+        </div>
+        <div id="dynamicFilters" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+        <div class="button-group"><button id="reset">Reset all</button></div>
+      </div>
+
+      <div id="count"></div>
+      <div class="table-wrapper" id="tableWrapper">
+        <table id="table" aria-live="polite">
+          <thead><tr id="thead"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
     </div>
-    <div id="dynamicFilters" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
-    <div class="button-group"><button id="reset">Reset all</button></div>
   </div>
 
-  <div id="count"></div>
-  <div class="table-wrapper">
-    <table id="table" aria-live="polite">
-      <thead><tr id="thead"></tr></thead>
-      <tbody id="tbody"></tbody>
-    </table>
+  <!-- Fixed bottom scroll bar -->
+  <div class="bottom-scrollbar-container" id="bottomScrollbar">
+    <div class="scrollbar-dummy" id="scrollbarDummy"></div>
   </div>
 
 <script>
@@ -136,6 +203,15 @@ function renderTable(rows) {
   });
 
   document.getElementById('count').textContent = rows.length + ' record(s)';
+  
+  // Update scrollbar dummy width to match table width
+  updateScrollbarDummy();
+}
+
+function updateScrollbarDummy() {
+  const table = document.getElementById('table');
+  const scrollbarDummy = document.getElementById('scrollbarDummy');
+  scrollbarDummy.style.width = table.offsetWidth + 'px';
 }
 
 function createFilters(rows) {
@@ -244,6 +320,18 @@ function toggleOrder() {
   applyFilters();
 }
 
+// Sync bottom scrollbar with table wrapper
+const tableWrapper = document.getElementById('tableWrapper');
+const bottomScrollbar = document.getElementById('bottomScrollbar');
+
+tableWrapper.addEventListener('scroll', () => {
+  bottomScrollbar.scrollLeft = tableWrapper.scrollLeft;
+});
+
+bottomScrollbar.addEventListener('scroll', () => {
+  tableWrapper.scrollLeft = bottomScrollbar.scrollLeft;
+});
+
 document.getElementById('search').addEventListener('input', applyFilters);
 document.getElementById('sortBy').addEventListener('change', applyFilters);
 document.getElementById('toggleOrder').addEventListener('click', () => { toggleOrder(); });
@@ -259,6 +347,11 @@ document.getElementById('reset').addEventListener('click', () => {
   sortOrderAsc = true; 
   document.getElementById('toggleOrder').textContent = 'Asc';
   applyFilters();
+});
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  updateScrollbarDummy();
 });
 
 // Fetch and parse JSON data

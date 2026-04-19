@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BBBC - Bewley Brother's Bowie Collection</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 20px; background-color: #f5f5f5; }
+    h1 { color: #333; margin-bottom: 5px; }
+    .subtitle { color: #666; margin: 0 0 15px 0; font-size: 14px; }
+    .controls { margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    input[type="search"] { padding: 8px; min-width: 260px; border: 1px solid #ddd; border-radius: 4px; }
+    select, button, label { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+    select[multiple] { min-width: 160px; max-width: 260px; height: 120px; }
+    .filter-block { display:flex; flex-direction:column; font-size:90%; }
+    .small { font-size:90%; color:#666; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #667eea; color: white; cursor: pointer; user-select: none; font-weight: 600; }
+    th:hover { background: #5568d3; }
+    tr:nth-child(even) { background-color: #fafafa; }
+    tr:hover { background-color: #f0f0f0; }
+    a { color: #0366d6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    #count { margin-top: 6px; font-weight: 600; color: #333; }
+    .button-group { margin-left: auto; display: flex; gap: 8px; }
+    button { cursor: pointer; background: white; transition: all 0.2s; }
+    button:hover { background: #f0f0f0; }
+    #reset { background: #e74c3c; color: white; }
+    #reset:hover { background: #c0392b; }
+    #toggleOrder { background: #667eea; color: white; }
+    #toggleOrder:hover { background: #5568d3; }
+    @media (max-width: 800px) {
+      .controls { flex-direction: column; align-items: stretch; }
+      select[multiple] { height: 90px; }
+      .button-group { flex-direction: column; margin-left: 0; }
+      input[type="search"] { min-width: auto; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🎵 BBBC - Bewley Brother's Bowie Collection</h1>
+  <p class="subtitle">A searchable directory of David Bowie vinyl records (27 categories)</p>
+
+  <div class="controls" id="controls">
+    <input id="search" type="search" placeholder="Search (Artist, Title, Label, Country...)" aria-label="Search">
+    <div class="filter-block">
+      <span class="small">Sort by</span>
+      <select id="sortBy"></select>
+      <button id="toggleOrder" title="Toggle sort order">Asc</button>
+    </div>
+    <div id="dynamicFilters" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+    <div class="button-group"><button id="reset">Reset all</button></div>
+  </div>
+
+  <div id="count"></div>
+  <table id="table" aria-live="polite">
+    <thead><tr id="thead"></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+<script>
+// Path to JSON data file
+const dataPath = 'data/records.json';
+
+// Columns that should have filterable dropdowns
+// Adjust these to match your key searchable categories
+const filterableHeaders = ['artist', 'year', 'type', 'country', 'medium', 'recComp'];
+
+// Headers to display in table (in order)
+const displayHeaders = ['id', 'artist', 'title', 'recComp', 'year', 'type', 'country', 'catNoI', 'medium', 'discs', 'vinylType', 'sleeveType', 'sealed', 'remark'];
+
+// Header display names (friendly names for the table)
+const headerNames = {
+  'id': 'ID',
+  'artist': 'Artist',
+  'title': 'Title',
+  'recComp': 'Label',
+  'year': 'Year',
+  'type': 'Type',
+  'country': 'Country',
+  'catNoI': 'Cat. No. I',
+  'catNoII': 'Cat. No. II',
+  'barcode': 'Barcode',
+  'medium': 'Medium',
+  'discs': 'Discs',
+  'vinylType': 'Vinyl Type',
+  'le': 'L.E.',
+  'labelLettering': 'Label Lettering',
+  'labelBackground': 'Label Background',
+  'sleeveType': 'Sleeve Type',
+  'sleeveGraphics': 'Sleeve Graphics',
+  'sleeveFinish': 'Sleeve Finish',
+  'sleeveFeatures': 'Sleeve Features',
+  'sleeveLettering': 'Sleeve Lettering',
+  'sleeveBackground': 'Sleeve Background',
+  'priceCode': 'Price Code',
+  'innerBag': 'Inner Bag',
+  'insert': 'Insert',
+  'sealed': 'Sealed?',
+  'remark': 'Remark'
+};
+
+let allRows = [];
+let sortOrderAsc = true;
+
+function renderTable(rows) {
+  const thead = document.getElementById('thead'), tbody = document.getElementById('tbody');
+  thead.innerHTML = ''; tbody.innerHTML = '';
+
+  displayHeaders.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = headerNames[h] || h;
+    th.addEventListener('click', () => {
+      document.getElementById('sortBy').value = h;
+      const current = document.getElementById('sortBy').dataset.last;
+      if (current === h) toggleOrder();
+      document.getElementById('sortBy').dataset.last = h;
+      applyFilters();
+    });
+    thead.appendChild(th);
+  });
+
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    displayHeaders.forEach(h => {
+      const td = document.createElement('td');
+      const v = r[h] ?? '';
+      td.textContent = v;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('count').textContent = rows.length + ' record(s)';
+}
+
+function createFilters(rows) {
+  const container = document.getElementById('dynamicFilters');
+  container.innerHTML = '';
+
+  filterableHeaders.forEach((h, idx) => {
+    const block = document.createElement('div');
+    block.className = 'filter-block';
+    const label = document.createElement('span'); 
+    label.className = 'small'; 
+    label.textContent = headerNames[h] || h;
+    
+    const sel = document.createElement('select');
+    sel.id = 'filter-' + idx;
+    
+    // Create "All" option
+    const allOption = document.createElement('option');
+    allOption.value = '';
+    allOption.textContent = 'All';
+    sel.appendChild(allOption);
+    
+    const set = new Set();
+    rows.forEach(r => {
+      const cell = r[h] || '';
+      if (cell) set.add(cell.toString());
+    });
+    
+    [...set].sort((a,b) => {
+      // Sort numbers numerically, strings alphabetically
+      if (!isNaN(a) && !isNaN(b)) return a - b;
+      return a.localeCompare(b, undefined, {sensitivity:'base'});
+    }).forEach(v => {
+      const o = document.createElement('option'); 
+      o.value = v; 
+      o.textContent = v; 
+      sel.appendChild(o);
+    });
+    
+    block.appendChild(label);
+    block.appendChild(sel);
+    container.appendChild(block);
+  });
+
+  const sortBy = document.getElementById('sortBy');
+  sortBy.innerHTML = '';
+  displayHeaders.forEach(h => { 
+    const o = document.createElement('option'); 
+    o.value = h; 
+    o.textContent = headerNames[h] || h; 
+    sortBy.appendChild(o); 
+  });
+  sortBy.value = displayHeaders[0] || '';
+  sortBy.dataset.last = '';
+}
+
+function applyFilters() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+
+  let filtered = allRows.filter(r => {
+    // Filter by dropdown selections
+    for (let i = 0; i < filterableHeaders.length; i++) {
+      const h = filterableHeaders[i];
+      const sel = document.getElementById('filter-' + i);
+      const selected = sel.value;
+      if (selected && r[h] !== selected) {
+        return false;
+      }
+    }
+
+    // Free-text search across all columns
+    if (q) {
+      const hay = displayHeaders.map(h => (r[h] || '').toString().toLowerCase()).join(' ');
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // Sorting
+  const sortBy = (document.getElementById('sortBy').value || '');
+  if (sortBy) {
+    filtered.sort((a,b) => {
+      const A = (a[sortBy] || '').toString().toLowerCase();
+      const B = (b[sortBy] || '').toString().toLowerCase();
+      
+      // Try numeric sort if both values are numbers
+      if (!isNaN(A) && !isNaN(B)) {
+        const numA = parseFloat(A);
+        const numB = parseFloat(B);
+        return sortOrderAsc ? numA - numB : numB - numA;
+      }
+      
+      // String sort
+      if (A < B) return sortOrderAsc ? -1 : 1;
+      if (A > B) return sortOrderAsc ? 1 : -1;
+      return 0;
+    });
+  }
+
+  renderTable(filtered);
+}
+
+function toggleOrder() {
+  sortOrderAsc = !sortOrderAsc;
+  document.getElementById('toggleOrder').textContent = sortOrderAsc ? 'Asc' : 'Desc';
+  applyFilters();
+}
+
+document.getElementById('search').addEventListener('input', applyFilters);
+document.getElementById('sortBy').addEventListener('change', applyFilters);
+document.getElementById('toggleOrder').addEventListener('click', () => { toggleOrder(); });
+
+// Reset all filters
+document.getElementById('reset').addEventListener('click', () => {
+  document.getElementById('search').value = '';
+  filterableHeaders.forEach((_, idx) => {
+    const sel = document.getElementById('filter-' + idx);
+    if (sel) sel.value = '';
+  });
+  document.getElementById('sortBy').value = displayHeaders[0] || '';
+  sortOrderAsc = true; 
+  document.getElementById('toggleOrder').textContent = 'Asc';
+  applyFilters();
+});
+
+// Fetch and parse JSON data
+fetch(dataPath)
+  .then(resp => {
+    if (!resp.ok) throw new Error('Could not fetch data (status ' + resp.status + ')');
+    return resp.json();
+  })
+  .then(data => {
+    allRows = Array.isArray(data) ? data : [];
+    createFilters(allRows);
+    renderTable(allRows);
+  })
+  .catch(err => {
+    document.getElementById('count').textContent = 'Error loading data: ' + (err && err.message ? err.message : err);
+  });
+</script>
+</body>
+</html>
